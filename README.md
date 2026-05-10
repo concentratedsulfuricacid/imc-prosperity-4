@@ -11,7 +11,7 @@ We finished **53rd globally**, **1st in Singapore**, and **top 5 in Asia**. Our 
 
 The competition rewarded that style of thinking. The products were noisy enough that overfitting was easy, but structured enough that careful market observation produced real edges. Our final strategies were therefore mostly simple: anchored fair values, EMAs, volatility-smile deviations, regime rules, pair spreads, and target-position systems.
 
-## Results Summary
+## Results Summary (Algorithmic Trading Only) 
 
 | Round | Main focus | Final PnL |
 | --- | --- | ---: |
