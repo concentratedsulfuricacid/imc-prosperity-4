@@ -181,7 +181,7 @@ The cap was important. Trader flow was a tilt, not the model itself. We wanted i
 
 Hydrogel stayed in the strategy, but we reduced its role. Earlier versions included more passive logic, but the cleanest edge came from level-based directional trades. If a component produced marginal benefit and added extra failure modes, we removed or weakened it.
 
-Round 4's main lesson was that option products can be traded from multiple valid frames. In Round 3, relative smile consistency was the useful frame. In Round 4, terminal settlement value was the better frame.
+Round 4 showed that option products can be traded from multiple valid frames. In Round 3, relative smile consistency was the useful frame. In Round 4, terminal settlement value was the better frame.
 
 ### Round 5: A Broad Market With Small Limits
 
@@ -297,3 +297,102 @@ Second, we would make the research-to-submission pipeline cleaner. Competition c
 Third, we would formalize parameter stability checks. We did this manually, but an automated grid-stability report would have helped avoid both overfitting and underconfidence.
 
 Overall, our run was built on a practical principle: find the market structure first, then write the simplest strategy that exploits it. That was enough to finish 53rd globally, 1st in Singapore, and top 5 in Asia.
+
+## Manual Trading Challenge
+
+The manual trading rounds were a separate source of PnL from the algorithmic strategies. These challenges rewarded fast pattern recognition, careful arithmetic, and good judgment under incomplete information.
+
+The PnL numbers below are round-specific and should not be compared directly across rounds, because each manual challenge had its own scoring scale and structure.
+
+| Round | Manual Trading PnL |
+| --- | ---: |
+| 1 | 87,995 |
+| 2 | 200,716 |
+| 3 | 68,029 |
+| 4 | 25,872 |
+| 5 | 94,846 |
+
+### Round 1: An Intarian Welcome
+
+Round 1 was a pair of one-shot opening auctions for `DRYLAND_FLAX` and `EMBER_MUSHROOM`. The auction cleared at a single price, and because we submitted last, our order could affect both the clearing price and our queue priority.
+
+For each candidate clearing price, the useful calculation was:
+
+```text
+volume(c) = min(total bids at or above c, total asks at or below c)
+```
+
+The exchange then chose the price with the highest `volume(c)`, using the higher price to break ties. After that, we evaluated our own fill and resale value.
+
+We approached it by treating each possible submission as a change to the auction's clearing outcome rather than as a normal fair-value trade. The key was finding the point where adding more size stopped increasing expected profit and started moving the clearing price against us.
+
+This ranked 1st for the round.
+
+### Round 2: Invest & Expand
+
+Round 2 was a budget-allocation problem. We had 50,000 XIRECs to allocate across Research, Scale, and Speed, with each allocation expressed as a percentage from 0 to 100 and total allocation capped at 100.
+
+The public scoring function was:
+
+```text
+PnL = Research * Scale * Speed - Budget_Used
+research(x) = 200000 * log(1 + x) / log(101)
+scale(y) = 7 * y / 100
+```
+
+We separated the problem into a private-value part and a competitive part. Research and Scale could be analyzed directly from the scoring rules, while Speed depended on where other teams were likely to cluster. That made the final allocation more like a game-theory decision than a pure calculus exercise.
+
+We used a small scenario model for likely competitor behavior and chose an allocation that was robust across several plausible speed distributions.
+
+### Round 3: The Celestial Gardeners' Guild
+
+Round 3 was a two-bid pricing problem for `ORNAMENTAL_BIO_POD`. Counterparty reserve prices were uniformly distributed from 670 to 920 in increments of 5, and any inventory could be resold the next day at a fair value of 920.
+
+The lower bid was mainly a margin-capture tool, while the higher bid traded off extra fill probability against worse per-unit economics. The second bid also depended on the global average submitted by other teams, so the standalone expected-value answer was only a starting point.
+
+Ignoring the crowd-average adjustment, the shape of the problem was:
+
+```text
+E[profit] =
+  (920 - low_bid) * P(reserve < low_bid)
++ (920 - high_bid) * P(low_bid <= reserve < high_bid)
+```
+
+We used the reserve-price distribution to anchor the bids, then adjusted for the strategic crowd component.
+
+### Round 4: Vanilla Just Isn't Exotic Enough
+
+Round 4 moved from discrete bidding into derivative pricing. The tradable universe was `AETHER_CRYSTAL`, vanilla calls and puts with 2-week and 3-week expiries, and several exotic derivatives written on the same underlying.
+
+The structure looked like an options-pricing problem, but with an important twist: there was no rebalancing after the initial trade. We had to choose positions at the start of the round, hold them to expiry, and get marked against fair values generated from 100 simulations. That made unhedged exposure much more dangerous than it would look in a normal options backtest.
+
+We framed each contract as:
+
+```text
+edge = simulated_fair_value - market_price
+portfolio_pnl = sum(position_i * edge_i)
+```
+
+The hard part was not the formula itself, but making sure the combined book did not accidentally become a large bet on one underlying path or one exotic payoff feature.
+
+We looked for relative mispricings across vanilla and exotic payoffs, but this was our weakest manual execution. Some positions were directionally right, but the combined book still carried too much exposure to model error and payoff-shape risk.
+
+In hindsight, the better version of this approach would have been less focused on individual underpricing and more focused on portfolio-level risk.
+
+### Round 5: Extra! Extra! Read All About It!
+
+Round 5 was a news-trading and portfolio-construction problem. We had access to Ashflow Alpha, a news source for the Ignith exchange, and had to build a one-day portfolio from the products mentioned in the news.
+
+This round was less about closed-form pricing and more about translating qualitative information into expected returns. Each product had a hidden return range and anchor. Participant submissions could move the realized return within that range, so the best trade was not always the most obvious headline reaction. Some news was genuinely fundamental, some was already priced in, and some created crowding risk.
+
+We treated the news as inputs to a portfolio optimizer. The first step was assigning a signed view to each commodity from the text: whether the story implied real demand, forced flow, temporary hype, operational disruption, or existential damage. The second step was sizing those views under the round's fee structure, where concentrated positions became increasingly expensive.
+
+At a high level, the objective was:
+
+```text
+expected_pnl = sum(position_i * expected_return_i) - fee(position_i)
+```
+
+with a quadratic fee that made oversized single-name bets expensive.
+
+We deliberately allowed the optimizer to leave budget unused when the marginal trade no longer paid for its fee.
